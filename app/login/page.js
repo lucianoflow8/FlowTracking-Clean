@@ -1,4 +1,6 @@
-// app/login/page.js
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 "use client";
 
 import { useState } from "react";
