@@ -1,0 +1,18 @@
+# deps & builds
+node_modules/
+.next/
+out/
+dist/
+build/
+.vercel/
+.turbo/
+*.log
+
+# envs
+.env*
+!.env.example
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
