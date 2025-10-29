@@ -1,10 +1,10 @@
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-
 "use client";
+
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+
+// ...resto igual...
 
 export default function AcceptInvitePage() {
   const searchParams = useSearchParams();
