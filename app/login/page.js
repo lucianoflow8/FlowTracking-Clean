@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-// ...resto igual...
-
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();

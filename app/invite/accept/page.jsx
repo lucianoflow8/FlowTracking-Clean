@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-// ...resto igual...
-
 export default function AcceptInvitePage() {
   const sp = useSearchParams();
   const router = useRouter();
