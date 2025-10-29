@@ -1,46 +1,54 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-// ...resto igual...
-
-export default function AcceptInvitePage() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+function AcceptInviteInner() {
+  const sp = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState("Verificando invitación...");
+  const token = sp.get("token") || "";
+
+  const [status, setStatus] = useState("checking");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const acceptInvite = async () => {
+    (async () => {
       if (!token) {
-        setStatus("❌ Token inválido o inexistente");
+        setStatus("error");
+        setMessage("Token inválido.");
         return;
       }
-
-      const { data, error } = await supabase.rpc("accept_project_invite", { _token: token });
-
+      const { error } = await supabase.rpc("accept_project_invite", { _token: token });
       if (error) {
-        setStatus(`❌ Error: ${error.message}`);
+        setStatus("error");
+        setMessage(error.message || "No se pudo aceptar la invitación.");
       } else {
-        setStatus("✅ Invitación aceptada correctamente. Redirigiendo...");
-        setTimeout(() => router.push("/projects"), 2500);
+        setStatus("ok");
+        setMessage("¡Listo! Ya sos miembro del proyecto.");
+        setTimeout(() => router.push("/projects"), 1600);
       }
-    };
-
-    acceptInvite();
-  }, [token]);
+    })();
+  }, [token, router]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#0b0b0d] text-white">
-      <div className="text-center">
-        <h1 className="text-xl font-semibold mb-4">FlowTracking</h1>
-        <p className="text-lg">{status}</p>
+    <main className="min-h-screen grid place-items-center bg-[#0b0b0d] text-white p-6">
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-8 max-w-md w-full text-center">
+        {status === "checking" && <div>Verificando invitación…</div>}
+        {status === "ok" && <div className="text-emerald-400">{message}</div>}
+        {status === "error" && <div className="text-red-400">{message}</div>}
       </div>
     </main>
   );
 }
 
-
-
+export default function AcceptInvitePage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-white/60">Cargando…</div>}>
+      <AcceptInviteInner />
+    </Suspense>
+  );
+}

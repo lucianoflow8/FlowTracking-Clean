@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -33,7 +36,6 @@ export default function LoginPage() {
       });
 
       if (error) {
-        // Mensajes más claros para algunos casos comunes
         if (
           error.message?.toLowerCase().includes("email not confirmed") ||
           error.status === 401
@@ -142,5 +144,10 @@ export default function LoginPage() {
   );
 }
 
-
-
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-white/60">Cargando…</div>}>
+      <LoginInner />
+    </Suspense>
+  );
+}

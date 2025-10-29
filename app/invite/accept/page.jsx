@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function AcceptInvitePage() {
+function InviteAcceptInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const token = sp.get("token") || "";
 
-  const [status, setStatus] = useState("checking"); // checking | ok | error
+  const [status, setStatus] = useState("checking");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -26,7 +29,6 @@ export default function AcceptInvitePage() {
       } else {
         setStatus("ok");
         setMessage("¡Listo! Ya sos miembro del proyecto.");
-        // redirigí a donde quieras (dashboard o proyectos)
         setTimeout(() => router.push("/projects"), 1600);
       }
     })();
@@ -40,5 +42,13 @@ export default function AcceptInvitePage() {
         {status === "error" && <div className="text-red-400">{message}</div>}
       </div>
     </main>
+  );
+}
+
+export default function InviteAcceptPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-white/60">Cargando…</div>}>
+      <InviteAcceptInner />
+    </Suspense>
   );
 }
