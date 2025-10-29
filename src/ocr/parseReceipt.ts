@@ -71,9 +71,8 @@ export async function ocrAndParse(buffer: Buffer): Promise<ParsedReceipt> {
     .toBuffer();
 
   // 2) OCR (español)
-  const { data } = await Tesseract.recognize(pre, "spa", {
-    tessedit_pageseg_mode: 6,
-  });
+const tessOpts: any = { tessedit_pageseg_mode: 6 }; // PSM 6 = Assume a single uniform block of text
+const { data } = await Tesseract.recognize(pre, "spa", tessOpts);
 
   const text = (data?.text || "").replace(/\s+\n/g, "\n").trim();
 
