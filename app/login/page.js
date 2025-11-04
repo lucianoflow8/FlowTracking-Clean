@@ -15,11 +15,11 @@ function LoginInner() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<{ type: "error" | "success" | "" ; text: string }>({ type: "", text: "" });
+  const [msg, setMsg] = useState({ type: "", text: "" });
 
   const redirectTo = searchParams.get("redirect") || "/projects";
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e) {
     e.preventDefault();
     setMsg({ type: "", text: "" });
 
@@ -38,8 +38,7 @@ function LoginInner() {
       if (error) {
         if (
           error.message?.toLowerCase().includes("email not confirmed") ||
-          // @ts-expect-error status puede no venir tipado
-          (error as any).status === 401
+          error.status === 401
         ) {
           setMsg({
             type: "error",
@@ -60,7 +59,7 @@ function LoginInner() {
         setMsg({ type: "success", text: "¡Sesión iniciada! Redirigiendo…" });
         router.push(redirectTo);
       }
-    } catch (err: any) {
+    } catch (err) {
       setMsg({ type: "error", text: err?.message || "Error inesperado." });
     } finally {
       setLoading(false);
@@ -75,7 +74,7 @@ function LoginInner() {
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
             Beta pública
           </div>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">
             Iniciar sesión
           </h1>
           <p className="mt-1 text-white/60">
