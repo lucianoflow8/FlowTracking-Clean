@@ -4,7 +4,6 @@ import { supabasePublic } from "@/lib/supabasePublic";
 import { renderTemplatePublicFull } from "@/lib/pageTemplates";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 export default async function PublicPage({ params, searchParams }) {
   const slug = decodeURIComponent(params.slug || "");
