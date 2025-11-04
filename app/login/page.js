@@ -1,7 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = false; // ✅ para static export
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
@@ -96,6 +95,7 @@ function LoginInner() {
             placeholder="tucorreo@ejemplo.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
           />
 
           <label className="block text-sm text-white/70 mt-4 mb-1">
@@ -108,6 +108,7 @@ function LoginInner() {
             placeholder="********"
             value={pass}
             onChange={(e) => setPass(e.target.value)}
+            disabled={loading}
           />
 
           <button
@@ -120,6 +121,8 @@ function LoginInner() {
 
           {msg.text ? (
             <p
+              aria-live="polite"
+              role="status"
               className={`mt-3 text-sm ${
                 msg.type === "error"
                   ? "text-red-400"
