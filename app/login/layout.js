@@ -1,5 +1,4 @@
-// Layout mínimo para /login: fija un revalidate válido para static export
-export const revalidate = false; // ✅ tiene que ser número >= 0 o false
+export const dynamic = "force-dynamic"; // asegura que el segmento no se prerenderice
 
 export default function LoginLayout({ children }) {
   return children;

@@ -1,6 +1,6 @@
 "use client";
 
-export const revalidate = false; // ✅ para static export
+export const dynamic = "force-dynamic"; // evita SSG/ISR en build
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
