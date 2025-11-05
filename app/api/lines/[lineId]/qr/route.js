@@ -2,7 +2,18 @@
 import QR from "qrcode";
 
 // Si tenés un backend que expone el QR real, seteá esto en .env.local
-// WA_QR_ENDPOINT='http://localhost:4000/api/qr?lineId='
+const WA_API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE || process.env.WA_API_BASE;
+
+export async function POST(_req, { params }) {
+  const url = `${WA_API_BASE}/lines/${params.lineId}/qr`;
+  const resp = await fetch(url, { method: "POST" });
+  const data = await resp.json().catch(() => ({}));
+  return new Response(JSON.stringify(data), {
+    status: resp.status,
+    headers: { "Content-Type": "application/json" },
+  });
+}'
 // y la ruta va a hacer proxy a ese servicio.
 const UPSTREAM = process.env.WA_QR_ENDPOINT || "";
 

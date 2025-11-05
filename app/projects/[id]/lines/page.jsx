@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Phone, QrCode, Pencil, Trash2, Plus, CreditCard, Clock3 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_WA_API_URL || "http://localhost:4000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 /* ---------- UI helpers ---------- */
 function StatusBadge({ connected }) {

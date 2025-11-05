@@ -2,19 +2,32 @@
 import React, { useEffect, useState } from 'react';
 
 type Props = {
-  apiBase: string;        // ej: "http://localhost:4000"
-  lineId: string;         // ej: "linea22"
+  lineId: string;   // UUID de la línea (columna `id` en supabase)
   onClose: () => void;
 };
 
 type QrResponse = {
-  status: 'ready' | 'connected' | 'qr' | 'initializing' | 'loading' | 'disconnected' | 'error' | string;
+  status:
+    | 'ready'
+    | 'connected'
+    | 'qr'
+    | 'initializing'
+    | 'loading'
+    | 'disconnected'
+    | 'error'
+    | string;
   phone?: string | null;
   qr?: string | null;     // dataURL
   error?: string;
 };
 
-export default function GenerateQrModal({ apiBase, lineId, onClose }: Props) {
+// === Config: base del backend desde el .env del frontend ===
+// NEXT_PUBLIC_API_BASE=https://flowtracking-backend.onrender.com
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || '').replace(/\/$/, '');
+const UUID_RX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export default function GenerateQrModal({ lineId, onClose }: Props) {
   const [img, setImg] = useState<string | null>(null);
   const [status, setStatus] = useState<string>('initializing');
   const [phone, setPhone] = useState<string | null>(null);
@@ -25,18 +38,30 @@ export default function GenerateQrModal({ apiBase, lineId, onClose }: Props) {
     setLoading(true);
     setErr(null);
     setImg(null);
+
     try {
-      const res = await fetch(`${apiBase.replace(/\/$/, '')}/lines/${encodeURIComponent(lineId)}/qr`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const js: QrResponse = await res.json();
+      if (!API_BASE) {
+        throw new Error(
+          'Falta NEXT_PUBLIC_API_BASE en el .env del frontend'
+        );
+      }
+      if (!UUID_RX.test(lineId)) {
+        throw new Error(
+          'El lineId no es un UUID. Usá el ID (columna "id") de la tabla lines'
+        );
+      }
+
+      const res = await fetch(
+        `${API_BASE}/lines/${encodeURIComponent(lineId)}/qr`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+
+      const js: QrResponse = await res.json().catch(() => ({} as QrResponse));
 
       setStatus(js.status || 'initializing');
       if ('phone' in js && js.phone) setPhone(js.phone || null);
       if (js.qr) setImg(js.qr);
-
-      if (!res.ok) setErr(js.error || 'qr_failed');
+      if (!res.ok) setErr(js.error || `qr_failed (${res.status})`);
     } catch (e: any) {
       setErr(e?.message || 'network_error');
     } finally {
@@ -57,7 +82,9 @@ export default function GenerateQrModal({ apiBase, lineId, onClose }: Props) {
       <div style={card}>
         <div style={header}>
           <h3 style={{ margin: 0 }}>Conectar WhatsApp</h3>
-          <button onClick={onClose} style={closeBtn} aria-label="Cerrar">✕</button>
+          <button onClick={onClose} style={closeBtn} aria-label="Cerrar">
+            ✕
+          </button>
         </div>
 
         <ol style={steps}>
@@ -73,7 +100,13 @@ export default function GenerateQrModal({ apiBase, lineId, onClose }: Props) {
               <div>✓ Conectado{phone ? ` (${phone})` : ''}</div>
             </div>
           ) : img ? (
-            <img src={img} width={260} height={260} alt="QR" style={{ borderRadius: 12 }} />
+            <img
+              src={img}
+              width={260}
+              height={260}
+              alt="QR"
+              style={{ borderRadius: 12 }}
+            />
           ) : (
             <div>Generando QR…</div>
           )}
@@ -82,15 +115,21 @@ export default function GenerateQrModal({ apiBase, lineId, onClose }: Props) {
         {err && <div style={errorBox}>Error: {err}</div>}
 
         <div style={footer}>
-          <span style={muted}>Línea: <b>{lineId}</b> · Estado: {status}{phone ? ` · ${phone}` : ''}</span>
+          <span style={muted}>
+            Línea: <b>{lineId}</b> · Estado: {status}
+            {phone ? ` · ${phone}` : ''}
+          </span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <a
-              href={`${apiBase.replace(/\/$/, '')}/qr?line_id=${encodeURIComponent(lineId)}`}
-              target="_blank" rel="noreferrer"
-              style={secondaryBtn}
-            >
-              Abrir página de QR
-            </a>
+            {!!API_BASE && (
+              <a
+                href={`${API_BASE}/qr?line_id=${encodeURIComponent(lineId)}`}
+                target="_blank"
+                rel="noreferrer"
+                style={secondaryBtn}
+              >
+                Abrir página de QR
+              </a>
+            )}
             {!connected && (
               <button onClick={fetchQr} disabled={loading} style={primaryBtn}>
                 {loading ? 'Generando…' : 'Volver a generar'}
@@ -105,54 +144,96 @@ export default function GenerateQrModal({ apiBase, lineId, onClose }: Props) {
 
 /* ======= estilos inline minimalistas ======= */
 const backdrop: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)',
-  display: 'grid', placeItems: 'center', zIndex: 1000,
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,.5)',
+  display: 'grid',
+  placeItems: 'center',
+  zIndex: 1000
 };
 
 const card: React.CSSProperties = {
-  width: 520, background: '#0f1115', color: '#eee',
-  border: '1px solid #222', borderRadius: 16, padding: 20,
-  boxShadow: '0 10px 30px rgba(0,0,0,.4)', fontFamily: 'system-ui, sans-serif'
+  width: 520,
+  background: '#0f1115',
+  color: '#eee',
+  border: '1px solid #222',
+  borderRadius: 16,
+  padding: 20,
+  boxShadow: '0 10px 30px rgba(0,0,0,.4)',
+  fontFamily: 'system-ui, sans-serif'
 };
 
 const header: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 8
 };
 
 const closeBtn: React.CSSProperties = {
-  border: 0, background: 'transparent', color: '#aaa', fontSize: 18, cursor: 'pointer'
+  border: 0,
+  background: 'transparent',
+  color: '#aaa',
+  fontSize: 18,
+  cursor: 'pointer'
 };
 
 const steps: React.CSSProperties = {
-  margin: '0 0 12px', paddingLeft: 18, opacity: .85, lineHeight: 1.4
+  margin: '0 0 12px',
+  paddingLeft: 18,
+  opacity: 0.85,
+  lineHeight: 1.4
 };
 
 const qrBox: React.CSSProperties = {
-  display: 'grid', placeItems: 'center', height: 300,
-  border: '1px dashed #333', borderRadius: 12, marginBottom: 12
+  display: 'grid',
+  placeItems: 'center',
+  height: 300,
+  border: '1px dashed #333',
+  borderRadius: 12,
+  marginBottom: 12
 };
 
 const connectedBox: React.CSSProperties = {
-  color: '#16a34a', fontSize: 18, fontWeight: 600
+  color: '#16a34a',
+  fontSize: 18,
+  fontWeight: 600
 };
 
 const errorBox: React.CSSProperties = {
-  color: '#ef4444', background: '#ef444422', border: '1px solid #ef444455',
-  borderRadius: 8, padding: '8px 10px', marginBottom: 8, fontSize: 13
+  color: '#ef4444',
+  background: '#ef444422',
+  border: '1px solid #ef444455',
+  borderRadius: 8,
+  padding: '8px 10px',
+  marginBottom: 8,
+  fontSize: 13
 };
 
 const footer: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8
 };
 
-const muted: React.CSSProperties = { opacity: .65, fontSize: 12 };
+const muted: React.CSSProperties = { opacity: 0.65, fontSize: 12 };
 
 const primaryBtn: React.CSSProperties = {
-  padding: '8px 12px', borderRadius: 10, border: 0, cursor: 'pointer',
-  background: '#2563eb', color: 'white', fontWeight: 600
+  padding: '8px 12px',
+  borderRadius: 10,
+  border: 0,
+  cursor: 'pointer',
+  background: '#2563eb',
+  color: 'white',
+  fontWeight: 600
 };
 
 const secondaryBtn: React.CSSProperties = {
-  padding: '8px 12px', borderRadius: 10, border: '1px solid #2a2a2a',
-  background: '#17181c', color: '#ddd', textDecoration: 'none'
+  padding: '8px 12px',
+  borderRadius: 10,
+  border: '1px solid #2a2a2a',
+  background: '#17181c',
+  color: '#ddd',
+  textDecoration: 'none'
 };
