@@ -1,57 +1,75 @@
 // app/api/lines/[id]/qr/route.js
+// Ruta API de Next que actúa como proxy hacia tu backend de WhatsApp.
+// - POST: devuelve { status, qr, phone? } desde `${API_BASE}/lines/:id/qr`
+// - GET : proxya la imagen PNG del QR desde `${API_BASE}/lines/:id/qr.png`
+// Si no hay backend configurado, GET genera un QR local de prueba.
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import QR from "qrcode";
 
-// Si tenés un backend que expone el QR real, seteá esto en .env.local
-const WA_API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || process.env.WA_API_BASE;
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || process.env.WA_API_BASE || "").replace(/\/$/, "");
 
+// POST -> proxy al backend para obtener el dataURL del QR (JSON)
 export async function POST(_req, { params }) {
-  const url = `${WA_API_BASE}/lines/${params.lineId}/qr`;
-  const resp = await fetch(url, { method: "POST" });
-  const data = await resp.json().catch(() => ({}));
-  return new Response(JSON.stringify(data), {
-    status: resp.status,
-    headers: { "Content-Type": "application/json" },
-  });
-}'
-// y la ruta va a hacer proxy a ese servicio.
-const UPSTREAM = process.env.WA_QR_ENDPOINT || "";
+  const { id } = params;
 
+  if (!API_BASE) {
+    return new Response(JSON.stringify({ error: "api_base_not_configured" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const url = `${API_BASE}/lines/${encodeURIComponent(id)}/qr`;
+
+  try {
+    const upstream = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const body = await upstream.text(); // passthrough
+    return new Response(body, {
+      status: upstream.status,
+      headers: { "Content-Type": upstream.headers.get("content-type") || "application/json" },
+    });
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ error: "qr_proxy_failed", detail: e?.message || String(e) }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
+  }
+}
+
+// GET -> proxy de la imagen PNG del QR; si no hay backend, genera un QR local
 export async function GET(_req, { params }) {
   const { id } = params;
 
-  // 1) Si hay backend de WhatsApp configurado, proxy directo
-  if (UPSTREAM) {
+  if (API_BASE) {
+    const url = `${API_BASE}/lines/${encodeURIComponent(id)}/qr.png`;
     try {
-      const upstreamRes = await fetch(`${UPSTREAM}${encodeURIComponent(id)}`, {
-        // si tu upstream requiere headers, agregalos aquí
-        // headers: { Authorization: `Bearer ${process.env.WA_API_KEY}` }
-      });
-
-      if (!upstreamRes.ok) {
-        const txt = await upstreamRes.text();
+      const upstream = await fetch(url);
+      if (!upstream.ok) {
+        const txt = await upstream.text().catch(() => "");
         return new Response(`Upstream error: ${txt}`, { status: 502 });
       }
-
-      // Pasar tal cual el stream de la imagen
-      const ct = upstreamRes.headers.get("content-type") || "image/png";
-      return new Response(upstreamRes.body, {
+      return new Response(upstream.body, {
         status: 200,
         headers: {
-          "Content-Type": ct,
+          "Content-Type": upstream.headers.get("content-type") || "image/png",
           "Cache-Control": "no-store",
         },
       });
-    } catch (e) {
-      return new Response(`Proxy failed: ${e.message}`, { status: 502 });
+    } catch {
+      // cae al fallback local abajo
     }
   }
 
-  // 2) Sin backend: generamos un QR local (placeholder) para validar el flujo
-  // Codificamos un payload simple que identifique la línea
-  const payload = JSON.stringify({ line: id, t: Date.now() });
-
+  // Fallback local (placeholder) si no hay backend disponible
   try {
+    const payload = JSON.stringify({ line: id, t: Date.now() });
     const dataUrl = await QR.toDataURL(payload, {
       width: 512,
       margin: 1,
@@ -66,6 +84,6 @@ export async function GET(_req, { params }) {
       },
     });
   } catch (e) {
-    return new Response(`QR error: ${e.message}`, { status: 500 });
+    return new Response(`QR error: ${e?.message || String(e)}`, { status: 500 });
   }
 }
