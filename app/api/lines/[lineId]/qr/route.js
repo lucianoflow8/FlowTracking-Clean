@@ -1,8 +1,7 @@
-// app/api/lines/[id]/qr/route.js
-// Ruta API de Next que actúa como proxy hacia tu backend de WhatsApp.
-// - POST: devuelve { status, qr, phone? } desde `${API_BASE}/lines/:id/qr`
-// - GET : proxya la imagen PNG del QR desde `${API_BASE}/lines/:id/qr.png`
-// Si no hay backend configurado, GET genera un QR local de prueba.
+// app/api/lines/[lineId]/qr/route.js
+// Proxy a tu backend de WhatsApp para generar/leer el QR.
+// - POST: devuelve JSON desde `${API_BASE}/lines/:lineId/qr`
+// - GET : proxya `${API_BASE}/lines/:lineId/qr.png`; si no hay backend, genera un QR local.
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,9 +10,9 @@ import QR from "qrcode";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || process.env.WA_API_BASE || "").replace(/\/$/, "");
 
-// POST -> proxy al backend para obtener el dataURL del QR (JSON)
+// ---------- POST -> proxy JSON ----------
 export async function POST(_req, { params }) {
-  const { id } = params;
+  const lineId = params.lineId;
 
   if (!API_BASE) {
     return new Response(JSON.stringify({ error: "api_base_not_configured" }), {
@@ -22,7 +21,7 @@ export async function POST(_req, { params }) {
     });
   }
 
-  const url = `${API_BASE}/lines/${encodeURIComponent(id)}/qr`;
+  const url = `${API_BASE}/lines/${encodeURIComponent(lineId)}/qr`;
 
   try {
     const upstream = await fetch(url, {
@@ -30,10 +29,13 @@ export async function POST(_req, { params }) {
       headers: { "Content-Type": "application/json" },
     });
 
-    const body = await upstream.text(); // passthrough
+    const body = await upstream.text(); // passthrough tal cual
     return new Response(body, {
       status: upstream.status,
-      headers: { "Content-Type": upstream.headers.get("content-type") || "application/json" },
+      headers: {
+        "Content-Type": upstream.headers.get("content-type") || "application/json",
+        "Cache-Control": "no-store",
+      },
     });
   } catch (e) {
     return new Response(
@@ -43,12 +45,12 @@ export async function POST(_req, { params }) {
   }
 }
 
-// GET -> proxy de la imagen PNG del QR; si no hay backend, genera un QR local
+// ---------- GET -> proxy imagen PNG (o QR local si no hay backend) ----------
 export async function GET(_req, { params }) {
-  const { id } = params;
+  const lineId = params.lineId;
 
   if (API_BASE) {
-    const url = `${API_BASE}/lines/${encodeURIComponent(id)}/qr.png`;
+    const url = `${API_BASE}/lines/${encodeURIComponent(lineId)}/qr.png`;
     try {
       const upstream = await fetch(url);
       if (!upstream.ok) {
@@ -63,18 +65,14 @@ export async function GET(_req, { params }) {
         },
       });
     } catch {
-      // cae al fallback local abajo
+      // si falla proxy, caemos al fallback local
     }
   }
 
-  // Fallback local (placeholder) si no hay backend disponible
+  // Fallback local: QR de prueba (sirve para verificar el flujo sin backend)
   try {
-    const payload = JSON.stringify({ line: id, t: Date.now() });
-    const dataUrl = await QR.toDataURL(payload, {
-      width: 512,
-      margin: 1,
-      color: { dark: "#000000", light: "#ffffff" },
-    });
+    const payload = JSON.stringify({ line: lineId, t: Date.now() });
+    const dataUrl = await QR.toDataURL(payload, { width: 512, margin: 1, color: { dark: "#000000", light: "#ffffff" } });
     const base64 = dataUrl.split(",")[1];
     return new Response(Buffer.from(base64, "base64"), {
       status: 200,
